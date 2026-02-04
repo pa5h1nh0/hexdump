@@ -1,61 +1,65 @@
-#ifndef HEXDUMP_HPP
-#define HEXDUMP_HPP
+#pragma once
 
-#include <cctype>
+#include <cstdint>
 #include <iomanip>
 #include <ostream>
+#include <span>
 
-template <unsigned RowSize, bool ShowAscii>
+template <size_t RowSize, bool ShowAscii>
 struct CustomHexdump
 {
-    CustomHexdump(const void* data, unsigned length) :
-        mData(static_cast<const unsigned char*>(data)), mLength(length) { }
-    const unsigned char* mData;
-    const unsigned mLength;
+    CustomHexdump(const std::span<const uint8_t> bytes)
+        : mData(bytes.data()), mLength(bytes.size()) {}
+    const uint8_t *mData;
+    const size_t mLength;
 };
 
-template <unsigned RowSize, bool ShowAscii>
-std::ostream& operator<<(std::ostream& out, const CustomHexdump<RowSize, ShowAscii>& dump)
+template <size_t RowSize, bool ShowAscii>
+std::ostream &operator<<(std::ostream &out,
+                         const CustomHexdump<RowSize, ShowAscii> &dump)
 {
     out.fill('0');
-    for (int i = 0; i < dump.mLength; i += RowSize)
+
+    for (size_t i = 0; i < dump.mLength; i += RowSize)
     {
         out << "0x" << std::setw(6) << std::hex << i << ": ";
-        for (int j = 0; j < RowSize; ++j)
+
+        for (size_t j = 0; j < RowSize; ++j)
         {
+            if (((RowSize % 2) == 0) && (j == (RowSize / 2)))
+                out << " ";
+
             if (i + j < dump.mLength)
             {
-                out << std::hex << std::setw(2) << static_cast<int>(dump.mData[i + j]) << " ";
+
+                out << std::hex << std::setw(2)
+                    << static_cast<const int>(dump.mData[i + j]) << " ";
             }
             else
-            {
                 out << "   ";
-            }
         }
 
         out << " ";
         if (ShowAscii)
         {
-            for (int j = 0; j < RowSize; ++j)
+            out << "|  ";
+
+            for (size_t j = 0; j < RowSize; ++j)
             {
-                if (i + j < dump.mLength)
-                {
-                    if (std::isprint(dump.mData[i + j]))
-                    {
-                        out << static_cast<char>(dump.mData[i + j]);
-                    }
-                    else
-                    {
-                        out << ".";
-                    }
-                }
+                if (!(i + j < dump.mLength))
+                    continue;
+
+                if (std::isprint(dump.mData[i + j]))
+                    out << static_cast<const char>(dump.mData[i + j]);
+                else
+                    out << ".";
             }
         }
+
         out << std::endl;
     }
+
     return out;
 }
 
-typedef CustomHexdump<16, true> Hexdump;
-
-#endif // HEXDUMP_HPP
+using Hexdump = CustomHexdump<16, true>;
